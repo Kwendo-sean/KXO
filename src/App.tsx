@@ -15,12 +15,39 @@ export default function App() {
   });
   const [showSuccess, setShowSuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    console.log("Waitlist submission:", formData);
-    setShowSuccess(true);
-    setTimeout(() => setShowSuccess(false), 3000);
-  };
+  const handleSubmit = async (e: React.FormEvent) => {
+  e.preventDefault();
+
+  try {
+    const response = await fetch("http://localhost:5000/api/join-waitlist", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(formData),
+    });
+
+    const data = await response.json();
+
+    if (data.success) {
+      setShowSuccess(true);
+      setFormData({
+        name: "",
+        email: "",
+        phone: "",
+        betaTester: false,
+        ambassador: false,
+      });
+      setTimeout(() => setShowSuccess(false), 4000);
+    } else {
+      alert(data.message || "Something went wrong. Please try again.");
+    }
+  } catch (error) {
+    console.error("Error submitting waitlist form:", error);
+    alert("Network error. Please try again.");
+  }
+};
+
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-gradient-to-b from-[#D72638] via-[#8B1825] to-[#0D0D0D]">
@@ -487,8 +514,10 @@ export default function App() {
           >
             {/* Social Icons with Rotate & Glow */}
             <div className="flex items-center justify-center space-x-6 mb-8">
-              <motion.a
-                href="#"
+                <motion.a
+                href="https://www.instagram.com/kanairo_xo"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center transition-all duration-300"
                 whileHover={{ 
                   rotate: 10,
@@ -498,9 +527,9 @@ export default function App() {
                 }}
                 whileTap={{ scale: 0.95 }}
                 aria-label="Instagram"
-              >
+                >
                 <Instagram className="w-5 h-5 text-white" />
-              </motion.a>
+                </motion.a>
               <motion.a
                 href="#"
                 className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center transition-all duration-300"
