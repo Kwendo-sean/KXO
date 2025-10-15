@@ -18,8 +18,9 @@ app.secret_key = os.getenv("SECRET_KEY", "supersecretkey")
 app.permanent_session_lifetime = timedelta(hours=4)
 
 # ✅ Important: allow credentials for session cookies
-CORS(app, supports_credentials=True, origins=["http://localhost:5173"])
-
+CORS(app, supports_credentials=True, origins=[
+    "https://your-frontend-domain.onrender.com"
+])
 # --- Configure Flask-Mail ---
 app.config['MAIL_SERVER'] = 'smtp.gmail.com'
 app.config['MAIL_PORT'] = 587
