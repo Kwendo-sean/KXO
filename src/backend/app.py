@@ -177,7 +177,8 @@ def admin_login():
         if password == os.getenv("ADMIN_PASSWORD"):
             session["admin_authenticated"] = True
             session.permanent = True
-            return jsonify({"success": True, "message": "Login successful"})
+            # Set isAdmin flag for the client-side
+            return jsonify({"success": True, "message": "Login successful", "isAdmin": True})
 
         return jsonify({"success": False, "message": "Invalid password"}), 401
 
