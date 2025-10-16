@@ -531,7 +531,7 @@ export default function App() {
                 <Instagram className="w-5 h-5 text-white" />
                 </motion.a>
               <motion.a
-                href="#"
+                href="https://www.tiktok.com/@kanairo_xo?_t=ZM-90SVFIJ08JX&_r=1"
                 className="w-12 h-12 rounded-full bg-white/5 border border-white/10 flex items-center justify-center transition-all duration-300"
                 whileHover={{ 
                   rotate: 10,

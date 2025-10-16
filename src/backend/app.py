@@ -1,8 +1,8 @@
 from flask import Flask, request, jsonify, session
 from flask_cors import CORS
 from flask_mail import Mail, Message
-import pymysql
-from pymysql.cursors import DictCursor
+import psycopg2
+from psycopg2.extras import RealDictCursor
 import os
 from dotenv import load_dotenv
 import logging
@@ -38,18 +38,19 @@ logger = logging.getLogger(__name__)
 # --- MySQL connection setup ---
 def get_db_connection():
     try:
-        conn = pymysql.connect(
-            host=os.getenv("MYSQL_HOST", "127.0.0.1"),
-            user=os.getenv("MYSQL_USER"),
-            password=os.getenv("MYSQL_PASSWORD"),
-            database=os.getenv("MYSQL_DATABASE"),
-            port=int(os.getenv("MYSQL_PORT", 3306)),
-            cursorclass=DictCursor,  # ✅ returns dict-style results
+        conn = psycopg2.connect(
+            host=os.getenv("PG_HOST"),
+            database=os.getenv("PG_DATABASE"),
+            user=os.getenv("PG_USER"),
+            password=os.getenv("PG_PASSWORD"),
+            port=os.getenv("PG_PORT", 5432),
+            cursor_factory=RealDictCursor
         )
         return conn
-    except pymysql.MySQLError as e:
-        logger.error(f"MySQL connection failed: {e}")
+    except Exception as e:
+        logger.error(f"PostgreSQL connection failed: {e}")
         return None
+
 
 # --- Create table if not exists ---
 def init_db():
@@ -57,22 +58,21 @@ def init_db():
     if not conn:
         logger.error("Database initialization failed: No connection.")
         return
-
-    with conn.cursor() as cursor:
-        cursor.execute("""
-            CREATE TABLE IF NOT EXISTS waitlist_users (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(255) NOT NULL,
-                email VARCHAR(255) UNIQUE NOT NULL,
-                phone VARCHAR(50),
-                beta_tester BOOLEAN DEFAULT FALSE,
-                ambassador BOOLEAN DEFAULT FALSE,
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS waitlist_users (
+            id SERIAL PRIMARY KEY,
+            name VARCHAR(255) NOT NULL,
+            email VARCHAR(255) UNIQUE NOT NULL,
+            phone VARCHAR(50),
+            beta_tester BOOLEAN DEFAULT FALSE,
+            ambassador BOOLEAN DEFAULT FALSE,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+    """)
     conn.commit()
+    cursor.close()
     conn.close()
-    logger.info("✅ Database initialized successfully.")
 
 # --- Admin auth decorator ---
 def admin_required(f):
@@ -88,6 +88,8 @@ def admin_required(f):
 def join_waitlist():
     try:
         data = request.get_json()
+
+        # Validate input
         if not data or not data.get('email') or not data.get('name'):
             return jsonify({'success': False, 'message': 'Name and email are required'}), 400
 
@@ -97,27 +99,39 @@ def join_waitlist():
         beta_tester = data.get('betaTester', False)
         ambassador = data.get('ambassador', False)
 
+        # Connect to DB
         conn = get_db_connection()
         if not conn:
             return jsonify({'success': False, 'message': 'Database connection failed'}), 500
 
-        with conn.cursor() as cursor:
-            try:
+        try:
+            with conn.cursor() as cursor:
                 cursor.execute("""
                     INSERT INTO waitlist_users (name, email, phone, beta_tester, ambassador)
                     VALUES (%s, %s, %s, %s, %s)
                 """, (name, email, phone, beta_tester, ambassador))
-                conn.commit()
-            except pymysql.err.IntegrityError:
-                return jsonify({'success': False, 'message': 'Email already exists in waitlist'}), 400
+            conn.commit()
+        except psycopg2.errors.UniqueViolation:
+            conn.rollback()
+            return jsonify({'success': False, 'message': 'Email already exists in waitlist'}), 400
+        finally:
+            conn.close()
 
+        # Send confirmation email
         send_confirmation_email(name, email)
         logger.info(f"✅ New waitlist signup: {email}")
-        return jsonify({'success': True, 'message': 'Successfully joined waitlist! Check your email for confirmation.'})
+
+        return jsonify({
+            'success': True,
+            'message': 'Successfully joined waitlist! Check your email for confirmation.'
+        }), 200
 
     except Exception as e:
-        logger.error(f"Error processing waitlist signup: {e}")
-        return jsonify({'success': False, 'message': 'An error occurred. Please try again.'}), 500
+        logger.error(f"Error processing waitlist signup: {str(e)}")
+        return jsonify({
+            'success': False,
+            'message': 'An error occurred. Please try again.'
+        }), 500
 
 
 def send_confirmation_email(name, email):
