@@ -92,8 +92,6 @@ def admin_required(f):
 def join_waitlist():
     try:
         data = request.get_json()
-
-        # Validate input
         if not data or not data.get('email') or not data.get('name'):
             return jsonify({'success': False, 'message': 'Name and email are required'}), 400
 
@@ -103,58 +101,24 @@ def join_waitlist():
         beta_tester = data.get('betaTester', False)
         ambassador = data.get('ambassador', False)
 
-        # Connect to DB
         conn = get_db_connection()
         if not conn:
             return jsonify({'success': False, 'message': 'Database connection failed'}), 500
 
-        try:
-            with conn.cursor() as cursor:
-                cursor.execute("""
-                    INSERT INTO waitlist_users (name, email, phone, beta_tester, ambassador)
-                    VALUES (%s, %s, %s, %s, %s)
-                """, (name, email, phone, beta_tester, ambassador))
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                INSERT INTO waitlist_users (name, email, phone, beta_tester, ambassador)
+                VALUES (%s, %s, %s, %s, %s)
+            """, (name, email, phone, beta_tester, ambassador))
             conn.commit()
-        except psycopg2.errors.UniqueViolation:
-            conn.rollback()
-            return jsonify({'success': False, 'message': 'Email already exists in waitlist'}), 400
-        finally:
-            conn.close()
 
-        # Send confirmation email
-        send_confirmation_email(name, email)
         logger.info(f"✅ New waitlist signup: {email}")
-
-        return jsonify({
-            'success': True,
-            'message': 'Successfully joined waitlist! Check your email for confirmation.'
-        }), 200
+        return jsonify({'success': True, 'message': 'Successfully joined waitlist!'})
 
     except Exception as e:
-        logger.error(f"Error processing waitlist signup: {str(e)}")
-        return jsonify({
-            'success': False,
-            'message': 'An error occurred. Please try again.'
-        }), 500
+        logger.error(f"Error processing waitlist signup: {e}")
+        return jsonify({'success': False, 'message': 'An error occurred. Please try again.'}), 500
 
-
-def send_confirmation_email(name, email):
-    try:
-        subject = "Welcome to KanairoXO Waitlist! 💌"
-        html_body = f"""
-        <html>
-        <body>
-            <h2>Hey {name},</h2>
-            <p>Welcome to KanairoXO! You're officially on the waitlist 🎉<br>
-            We'll notify you when the app launches 💖</p>
-        </body>
-        </html>
-        """
-        msg = Message(subject=subject, recipients=[email], html=html_body)
-        mail.send(msg)
-        logger.info(f"📧 Confirmation email sent to {email}")
-    except Exception as e:
-        logger.error(f"❌ Failed to send email to {email}: {str(e)}")
 
 
 @app.route('/api/health', methods=['GET'])

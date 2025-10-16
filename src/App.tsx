@@ -16,38 +16,71 @@ export default function App() {
   const [showSuccess, setShowSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
-  e.preventDefault();
+    e.preventDefault();
 
-  try {
-    const response = await fetch("https://kxo.onrender.com/api/join-waitlist", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(formData),
-    });
-
-    const data = await response.json();
-
-    if (data.success) {
-      setShowSuccess(true);
-      setFormData({
-        name: "",
-        email: "",
-        phone: "",
-        betaTester: false,
-        ambassador: false,
+    try {
+      const response = await fetch("https://kxo.onrender.com/api/join-waitlist", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
       });
-      setTimeout(() => setShowSuccess(false), 4000);
-    } else {
-      alert(data.message || "Something went wrong. Please try again.");
-    }
-  } catch (error) {
-    console.error("Error submitting waitlist form:", error);
-    alert("Network error. Please try again.");
-  }
-};
 
+      const data = await response.json();
+
+      if (data.success) {
+        // --- STEP 1: Show success UI immediately ---
+        setShowSuccess(true);
+        setFormData({
+          name: "",
+          email: "",
+          phone: "",
+          betaTester: false,
+          ambassador: false,
+        });
+        setTimeout(() => setShowSuccess(false), 4000);
+
+        // --- STEP 2: Send confirmation email via RESEND ---
+        await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${import.meta.env.VITE_RESEND_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: "KanairoXO <noreply@kanairoxo.com>",
+            to: formData.email,
+            subject: "Welcome to KanairoXO Waitlist! 💌",
+            html: `
+              <div style="font-family: Arial, sans-serif; color: #333;">
+                <div style="background: linear-gradient(135deg, #D72638, #FF5C8D); color: white; padding: 24px; text-align: center; border-radius: 10px 10px 0 0;">
+                  <h1>Welcome to KanairoXO! 💝</h1>
+                </div>
+                <div style="padding: 24px; background: #f9f9f9; border-radius: 0 0 10px 10px;">
+                  <h2>Hey ${formData.name},</h2>
+                  <p>We're thrilled to have you join the KanairoXO waitlist! You're now part of an exclusive group that will be the first to experience where lovers meet — the Kanairo way.</p>
+                  <ul>
+                    <li>🌟 Early access to features</li>
+                    <li>💬 Exclusive updates</li>
+                    <li>❤️ Help shape Nairobi's dating scene</li>
+                  </ul>
+                  <p>With love,<br><strong>The KanairoXO Team</strong> ❤️</p>
+                </div>
+              </div>
+            `,
+          }),
+        });
+
+        console.log("✅ Email sent successfully");
+      } else {
+        alert(data.message || "Something went wrong. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error submitting waitlist form:", error);
+      alert("Network error. Please try again.");
+    }
+  };
 
   return (
     <div className="min-h-screen w-full overflow-x-hidden bg-gradient-to-b from-[#D72638] via-[#8B1825] to-[#0D0D0D]">
