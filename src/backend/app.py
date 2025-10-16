@@ -58,22 +58,26 @@ def init_db():
     if not conn:
         logger.error("Database initialization failed: No connection.")
         return
-    cursor = conn.cursor()
-    cursor.execute("""
-        CREATE TABLE IF NOT EXISTS waitlist_users (
-            id SERIAL PRIMARY KEY,
-            name VARCHAR(255) NOT NULL,
-            email VARCHAR(255) UNIQUE NOT NULL,
-            phone VARCHAR(50),
-            beta_tester BOOLEAN DEFAULT FALSE,
-            ambassador BOOLEAN DEFAULT FALSE,
-            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        )
-    """)
-    conn.commit()
-    cursor.close()
-    conn.close()
 
+    try:
+        with conn.cursor() as cursor:
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS waitlist_users (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(255) NOT NULL,
+                    email VARCHAR(255) UNIQUE NOT NULL,
+                    phone VARCHAR(50),
+                    beta_tester BOOLEAN DEFAULT FALSE,
+                    ambassador BOOLEAN DEFAULT FALSE,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                );
+            """)
+            conn.commit()
+            logger.info("✅ Database initialized successfully.")
+    except Exception as e:
+        logger.error(f"Database initialization error: {e}")
+    finally:
+        conn.close()
 # --- Admin auth decorator ---
 def admin_required(f):
     @wraps(f)
