@@ -19,7 +19,7 @@ export default function App() {
   e.preventDefault();
 
   try {
-    const response = await fetch("http://localhost:5000/api/join-waitlist", {
+    const response = await fetch("https://kxo.onrender.com/api/join-waitlist", {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
